@@ -21,14 +21,14 @@ module "eks" {
   # IRSA voor pod-level IAM
   enable_irsa = true
 
-  # DEV: maak de EKS API publiek bereikbaar zodat jij met kubectl kan verbinden
+  # DEV: EKS API publiek bereikbaar zodat jij met kubectl kunt verbinden
   cluster_endpoint_public_access  = true
   cluster_endpoint_private_access = false
 
-  # DEV: open voor alle IP's; voor echte omgeving kun je dit beperken
+  # DEV: open voor alle IP's (voor productie beperken!)
   cluster_endpoint_public_access_cidrs = ["0.0.0.0/0"]
 
-  # Managed node group (simpel, genoeg voor lab/case)
+  # Managed node group
   eks_managed_node_groups = {
     default = {
       desired_size = 2
@@ -37,6 +37,17 @@ module "eks" {
 
       instance_types = ["t3.medium"]
       capacity_type  = "ON_DEMAND"
+    }
+  }
+
+  # Toegang voor jouw Fontys SSO rol (cluster-admin)
+  access_entries = {
+    fontys-admin = {
+      principal_arn = "arn:aws:iam::280348121871:role/AWSReservedSSO_fictisb_IsbUsersPS_053963393f75c60c"
+
+      kubernetes_groups = [
+        "system:masters"
+      ]
     }
   }
 
