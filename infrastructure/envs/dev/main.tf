@@ -23,6 +23,12 @@ module "eks" {
   private_subnets = module.vpc.private_subnets
   tags            = local.common_tags
 }
+module "rds" {
+  source                = "../../modules/rds"
+  vpc_id                = module.vpc.vpc_id
+  private_subnet_ids    = module.vpc.private_subnets
+  node_security_group_id = module.eks.node_security_group_id
+}
 
 output "vpc_id" {
   value = module.vpc.vpc_id
