@@ -34,14 +34,19 @@ resource "aws_security_group" "rds" {
 }
 
 resource "aws_db_instance" "this" {
-  identifier             = "innovatech-hrdb-dev"
-  engine                 = "postgres"
-  engine_version         = "15.5"
-  instance_class         = "db.t3.micro"
-  allocated_storage      = 20
-  db_name                = "hrdb"
-  username               = "innovatech_admin"
-  password               = "VerySecure123!"
+  identifier        = "innovatech-hrdb-dev"
+
+  engine            = "postgres"
+  # Laat engine_version weg -> AWS kiest een ondersteunde versie voor je regio
+  # engine_version  = "15.4"
+
+  instance_class    = "db.t3.micro"
+  allocated_storage = 20
+
+  db_name  = "hrdb"
+  username = "innovatech_admin"
+  password = "VerySecure123!"  # (later netjes naar Secrets Manager)
+
   db_subnet_group_name   = aws_db_subnet_group.this.name
   vpc_security_group_ids = [aws_security_group.rds.id]
 
