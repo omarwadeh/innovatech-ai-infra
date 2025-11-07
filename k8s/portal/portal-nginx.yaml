@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: portal
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portal-nginx
+  namespace: portal
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: portal-nginx
+  template:
+    metadata:
+      labels:
+        app: portal-nginx
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.27
+          ports:
+            - containerPort: 80
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: portal-nginx-svc
+  namespace: portal
+spec:
+  type: LoadBalancer
+  selector:
+    app: portal-nginx
+  ports:
+    - port: 80
+      targetPort: 80
