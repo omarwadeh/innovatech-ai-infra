@@ -21,11 +21,9 @@ module "eks" {
   # IRSA voor pod-level IAM
   enable_irsa = true
 
-  # DEV: EKS API publiek bereikbaar zodat jij met kubectl kunt verbinden
+  # DEV: API endpoint publiek zodat je vanaf je laptop erbij kunt
   cluster_endpoint_public_access  = true
   cluster_endpoint_private_access = false
-
-  # DEV: open voor alle IP's (voor productie beperken!)
   cluster_endpoint_public_access_cidrs = ["0.0.0.0/0"]
 
   # Managed node group
@@ -40,16 +38,23 @@ module "eks" {
     }
   }
 
-  # Toegang voor jouw Fontys SSO rol (cluster-admin)
-  access_entries = {
-    fontys-admin = {
-      principal_arn = "arn:aws:iam::280348121871:role/AWSReservedSSO_fictisb_IsbUsersPS_053963393f75c60c"
+  # Gebruik klassieke aws-auth configmap om IAM -> Kubernetes te mappen
+  manage_aws_auth_configmap = true
 
-      kubernetes_groups = [
-        "system:masters"
-      ]
+  aws_auth_roles = [
+    # GitHub Actions role: was cluster creator, maar zetten we expliciet erbij als admin (pas ARN als nodig)
+    {
+      rolearn  = "arn:aws:iam::280348121871:role/GithubTerraformDevRole"
+      username = "github-terraform"
+      groups   = ["system:masters"]
+    },
+    # Jouw Fontys SSO rol: geef cluster-admin rechten
+    {
+      rolearn  = "arn:aws:iam::280348121871:role/AWSReservedSSO_fictisb_IsbUsersPS_053963393f75c60c"
+      username = "fontys-admin"
+      groups   = ["system:masters"]
     }
-  }
+  ]
 
   tags = var.tags
 }
