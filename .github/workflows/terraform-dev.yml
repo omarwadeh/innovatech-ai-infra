@@ -1,0 +1,46 @@
+name: Terraform Dev
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - "infrastructure/**"
+      - ".github/workflows/terraform-dev.yml"
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  id-token: write       # nodig voor OIDC
+  contents: read
+
+jobs:
+  terraform-dev:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infrastructure/envs/dev
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.6
+
+      - name: Terraform Init
+        run: terraform init -input=false
+
+      - name: Terraform Plan
+        run: terraform plan -input=false -var-file="dev.tfvars"
+
+      - name: Terraform Apply (only on main push)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: terraform apply -input=false -auto-approve -var-file="dev.tfvars"
