@@ -7,6 +7,25 @@ terraform {
   }
 }
 
+# IAM role die we als EKS-clusteradmin gebruiken
+# Alleen jouw Fontys SSO rol mag deze assumen
+resource "aws_iam_role" "eks_admin" {
+  name = "${var.project}-${var.env}-eks-admin"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::280348121871:role/AWSReservedSSO_fictisb_IsbUsersPS_053963393f75c60c"
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+}
+
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
   version = "~> 20.24"
@@ -20,12 +39,12 @@ module "eks" {
 
   enable_irsa = true
 
-  # DEV: API endpoint publiek zodat je vanaf je laptop erbij kunt
+  # DEV: publieke endpoint zodat je vanaf thuis kunt verbinden
   cluster_endpoint_public_access  = true
   cluster_endpoint_private_access = false
   cluster_endpoint_public_access_cidrs = ["0.0.0.0/0"]
 
-  # Managed node group (simple lab setup)
+  # Managed node group (simpel, genoeg voor lab)
   eks_managed_node_groups = {
     default = {
       desired_size = 2
@@ -37,17 +56,15 @@ module "eks" {
     }
   }
 
-  # Nieuwe manier: EKS Access Entries (Cluster Access Management)
-  # Geef jouw Fontys SSO rol volledige cluster-admin rechten
+  # Gebruik nieuwe EKS Access Entries:
+  # koppel onze eigen eks_admin rol als cluster admin
   access_entries = {
-    fontys-admin = {
-      principal_arn = "arn:aws:iam::280348121871:role/AWSReservedSSO_fictisb_IsbUsersPS_053963393f75c60c"
+    eks-admin = {
+      principal_arn = aws_iam_role.eks_admin.arn
 
       policy_associations = {
         admin = {
-          # Standaard EKS cluster admin policy
           policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
-
           access_scope = {
             type = "cluster"
           }
