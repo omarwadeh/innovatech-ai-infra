@@ -40,20 +40,6 @@ module "vpc" {
 
   tags = merge(
     var.tags,
-    {
-      "Name" = "${var.project}-${var.env}-vpc"
-    }
+    { Name = "${var.project}-${var.env}-vpc" }
   )
-}
-
-output "vpc_id" {
-  value = module.vpc.vpc_id
-}
-
-output "public_subnets" {
-  value = module.vpc.public_subnets
-}
-
-output "private_subnets" {
-  value = module.vpc.private_subnets
 }
