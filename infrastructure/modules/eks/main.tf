@@ -11,14 +11,24 @@ module "eks" {
   source  = "terraform-aws-modules/eks/aws"
   version = "~> 20.24"
 
+  # Basis
   cluster_name    = "${var.project}-${var.env}-eks"
   cluster_version = "1.29"
 
   vpc_id     = var.vpc_id
   subnet_ids = var.private_subnets
 
+  # IRSA voor pod-level IAM
   enable_irsa = true
 
+  # DEV: maak de EKS API publiek bereikbaar zodat jij met kubectl kan verbinden
+  cluster_endpoint_public_access  = true
+  cluster_endpoint_private_access = false
+
+  # DEV: open voor alle IP's; voor echte omgeving kun je dit beperken
+  cluster_endpoint_public_access_cidrs = ["0.0.0.0/0"]
+
+  # Managed node group (simpel, genoeg voor lab/case)
   eks_managed_node_groups = {
     default = {
       desired_size = 2
