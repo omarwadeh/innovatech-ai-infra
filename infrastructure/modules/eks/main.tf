@@ -11,14 +11,13 @@ module "eks" {
   source  = "terraform-aws-modules/eks/aws"
   version = "~> 20.24"
 
-  # Basis
+  # Basis cluster settings
   cluster_name    = "${var.project}-${var.env}-eks"
   cluster_version = "1.29"
 
   vpc_id     = var.vpc_id
   subnet_ids = var.private_subnets
 
-  # IRSA voor pod-level IAM
   enable_irsa = true
 
   # DEV: API endpoint publiek zodat je vanaf je laptop erbij kunt
@@ -26,7 +25,7 @@ module "eks" {
   cluster_endpoint_private_access = false
   cluster_endpoint_public_access_cidrs = ["0.0.0.0/0"]
 
-  # Managed node group
+  # Managed node group (simple lab setup)
   eks_managed_node_groups = {
     default = {
       desired_size = 2
@@ -38,23 +37,24 @@ module "eks" {
     }
   }
 
-  # Gebruik klassieke aws-auth configmap om IAM -> Kubernetes te mappen
-  manage_aws_auth_configmap = true
+  # Nieuwe manier: EKS Access Entries (Cluster Access Management)
+  # Geef jouw Fontys SSO rol volledige cluster-admin rechten
+  access_entries = {
+    fontys-admin = {
+      principal_arn = "arn:aws:iam::280348121871:role/AWSReservedSSO_fictisb_IsbUsersPS_053963393f75c60c"
 
-  aws_auth_roles = [
-    # GitHub Actions role: was cluster creator, maar zetten we expliciet erbij als admin (pas ARN als nodig)
-    {
-      rolearn  = "arn:aws:iam::280348121871:role/GithubTerraformDevRole"
-      username = "github-terraform"
-      groups   = ["system:masters"]
-    },
-    # Jouw Fontys SSO rol: geef cluster-admin rechten
-    {
-      rolearn  = "arn:aws:iam::280348121871:role/AWSReservedSSO_fictisb_IsbUsersPS_053963393f75c60c"
-      username = "fontys-admin"
-      groups   = ["system:masters"]
+      policy_associations = {
+        admin = {
+          # Standaard EKS cluster admin policy
+          policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+
+          access_scope = {
+            type = "cluster"
+          }
+        }
+      }
     }
-  ]
+  }
 
   tags = var.tags
 }
