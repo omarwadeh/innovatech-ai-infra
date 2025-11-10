@@ -1,0 +1,66 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: portal-frontend
+  namespace: portal
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8" />
+      <title>Innovatech HR Portal</title>
+      <style>
+        body { font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif; background:#0f172a; color:#e5e7eb; margin:0; padding:40px; }
+        .card { max-width:720px; margin:0 auto; background:#111827; padding:24px 28px; border-radius:16px; box-shadow:0 15px 40px rgba(0,0,0,0.5); }
+        h1 { margin-top:0; font-size:26px; color:#38bdf8; }
+        h2 { font-size:18px; margin-bottom:8px; color:#a5b4fc; }
+        .tag { display:inline-block; padding:2px 8px; border-radius:999px; background:#111827; border:1px solid #1d4ed8; font-size:11px; color:#60a5fa; margin-left:8px;}
+        code { font-size:12px; background:#020817; padding:3px 6px; border-radius:6px; }
+        button { margin-top:12px; padding:6px 12px; border-radius:8px; border:none; background:#38bdf8; color:#020817; font-weight:600; cursor:pointer; }
+        button:hover { background:#0ea5e9; }
+        ul { padding-left:18px; font-size:14px; }
+        .status { margin-top:8px; font-size:13px; color:#9ca3af; }
+        .ok { color:#22c55e; }
+        .err { color:#f97316; }
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <h1>Innovatech HR Portal <span class="tag">EKS + RDS + GitHub Actions</span></h1>
+        <p>
+          Deze demo-portal draait op Amazon EKS, met een HR API in dezelfde cluster en een
+          PostgreSQL database in private subnets. Alle infra & deployments worden beheerd via Terraform en GitHub Actions.
+        </p>
+
+        <h2>HR Employees</h2>
+        <p>Klik op de knop om live gegevens via de HR API op te halen.</p>
+        <button onclick="loadEmployees()">Load employees</button>
+        <div id="employees" class="status"></div>
+
+        <h2>Platform status</h2>
+        <ul>
+          <li>EKS cluster: <code>innovatech-dev-eks</code></li>
+          <li>Namespace: <code>portal</code></li>
+          <li>Service: <code>portal-hr-api-svc</code></li>
+          <li>Database: <code>innovatech-hrdb-dev (RDS PostgreSQL)</code></li>
+        </ul>
+      </div>
+
+      <script>
+        async function loadEmployees() {
+          const el = document.getElementById('employees');
+          el.textContent = 'Loading...';
+          try {
+            const res = await fetch('/api/employees');
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const data = await res.json();
+            el.innerHTML = '<span class="ok">API OK</span> ' +
+              'Employees: <code>' + JSON.stringify(data.employees) + '</code>';
+          } catch (err) {
+            el.innerHTML = '<span class="err">API ERROR</span> ' + err;
+          }
+        }
+      </script>
+    </body>
+    </html>

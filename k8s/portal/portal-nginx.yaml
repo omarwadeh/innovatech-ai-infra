@@ -1,8 +1,26 @@
 apiVersion: v1
-kind: Namespace
+kind: ConfigMap
 metadata:
-  name: portal
-
+  name: portal-nginx-conf
+  namespace: portal
+data:
+  nginx.conf: |
+    events {}
+    http {
+      upstream hr_api {
+        server portal-hr-api-svc.portal.svc.cluster.local:80;
+      }
+      server {
+        listen 80;
+        location / {
+          root /usr/share/nginx/html;
+          index index.html;
+        }
+        location /api/ {
+          proxy_pass http://hr_api/;
+        }
+      }
+    }
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -10,7 +28,7 @@ metadata:
   name: portal-nginx
   namespace: portal
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: portal-nginx
@@ -21,10 +39,23 @@ spec:
     spec:
       containers:
         - name: nginx
-          image: nginx:1.27
+          image: nginx:stable-alpine
           ports:
             - containerPort: 80
-
+          volumeMounts:
+            - name: nginx-conf
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+            - name: portal-frontend
+              mountPath: /usr/share/nginx/html/index.html
+              subPath: index.html
+      volumes:
+        - name: nginx-conf
+          configMap:
+            name: portal-nginx-conf
+        - name: portal-frontend
+          configMap:
+            name: portal-frontend
 ---
 apiVersion: v1
 kind: Service
