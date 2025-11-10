@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portal-hr-api
+  namespace: portal
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: portal-hr-api
+  template:
+    metadata:
+      labels:
+        app: portal-hr-api
+    spec:
+      containers:
+        - name: hr-api
+          image: omarwadeh/innovatech-hr-api:dev
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - secretRef:
+                name: portal-db
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: portal-hr-api-svc
+  namespace: portal
+spec:
+  type: ClusterIP
+  selector:
+    app: portal-hr-api
+  ports:
+    - port: 80
+      targetPort: 3000
