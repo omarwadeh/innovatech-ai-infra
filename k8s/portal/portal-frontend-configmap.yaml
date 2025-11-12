@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: portal-frontend
+  name: portal-frontend-config
   namespace: portal
 data:
   index.html: |
@@ -9,58 +9,356 @@ data:
     <html lang="en">
     <head>
       <meta charset="UTF-8" />
-      <title>Innovatech HR Portal</title>
-      <style>
-        body { font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif; background:#0f172a; color:#e5e7eb; margin:0; padding:40px; }
-        .card { max-width:720px; margin:0 auto; background:#111827; padding:24px 28px; border-radius:16px; box-shadow:0 15px 40px rgba(0,0,0,0.5); }
-        h1 { margin-top:0; font-size:26px; color:#38bdf8; }
-        h2 { font-size:18px; margin-bottom:8px; color:#a5b4fc; }
-        .tag { display:inline-block; padding:2px 8px; border-radius:999px; background:#111827; border:1px solid #1d4ed8; font-size:11px; color:#60a5fa; margin-left:8px;}
-        code { font-size:12px; background:#020817; padding:3px 6px; border-radius:6px; }
-        button { margin-top:12px; padding:6px 12px; border-radius:8px; border:none; background:#38bdf8; color:#020817; font-weight:600; cursor:pointer; }
-        button:hover { background:#0ea5e9; }
-        ul { padding-left:18px; font-size:14px; }
-        .status { margin-top:8px; font-size:13px; color:#9ca3af; }
-        .ok { color:#22c55e; }
-        .err { color:#f97316; }
-      </style>
+      <title>Innovatech Self-Service Portal</title>
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <link rel="stylesheet" href="styles.css" />
     </head>
     <body>
-      <div class="card">
-        <h1>Innovatech HR Portal <span class="tag">EKS + RDS + GitHub Actions</span></h1>
-        <p>
-          Deze demo-portal draait op Amazon EKS, met een HR API in dezelfde cluster en een
-          PostgreSQL database in private subnets. Alle infra & deployments worden beheerd via Terraform en GitHub Actions.
-        </p>
+      <header>
+        <h1>Innovatech Self-Service Portal</h1>
+        <p>Automated onboarding & offboarding</p>
+      </header>
 
-        <h2>HR Employees</h2>
-        <p>Klik op de knop om live gegevens via de HR API op te halen.</p>
-        <button onclick="loadEmployees()">Load employees</button>
-        <div id="employees" class="status"></div>
+      <main>
+        <section class="card">
+          <h2>Onboard Employee</h2>
+          <form id="onboard-form">
+            <input type="text" id="onboard-name" placeholder="Full name" required />
+            <input type="email" id="onboard-email" placeholder="Email" required />
+            <input type="text" id="onboard-dept" placeholder="Department (optional)" />
+            <input type="text" id="onboard-role" placeholder="Role (optional)" />
+            <button type="submit">Onboard</button>
+          </form>
+        </section>
 
-        <h2>Platform status</h2>
-        <ul>
-          <li>EKS cluster: <code>innovatech-dev-eks</code></li>
-          <li>Namespace: <code>portal</code></li>
-          <li>Service: <code>portal-hr-api-svc</code></li>
-          <li>Database: <code>innovatech-hrdb-dev (RDS PostgreSQL)</code></li>
-        </ul>
-      </div>
+        <section class="card">
+          <h2>Offboard Employee</h2>
+          <form id="offboard-form">
+            <input type="email" id="offboard-email" placeholder="Email" required />
+            <button type="submit" class="danger">Offboard</button>
+          </form>
+        </section>
 
-      <script>
-        async function loadEmployees() {
-          const el = document.getElementById('employees');
-          el.textContent = 'Loading...';
-          try {
-            const res = await fetch('/api/employees');
-            if (!res.ok) throw new Error('HTTP ' + res.status);
-            const data = await res.json();
-            el.innerHTML = '<span class="ok">API OK</span> ' +
-              'Employees: <code>' + JSON.stringify(data.employees) + '</code>';
-          } catch (err) {
-            el.innerHTML = '<span class="err">API ERROR</span> ' + err;
-          }
-        }
-      </script>
+        <section class="card wide">
+          <div class="list-header">
+            <h2>Employees</h2>
+            <button id="refresh-btn">Refresh list</button>
+          </div>
+          <div id="status"></div>
+          <table id="employees-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Dept</th>
+                <th>Role</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </section>
+      </main>
+
+      <script src="script.js"></script>
     </body>
     </html>
+
+  styles.css: |
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #020817;
+      color: #e5e7eb;
+    }
+    header {
+      padding: 1.5rem 2rem;
+      background: #020817;
+      border-bottom: 1px solid #111827;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.7rem;
+    }
+    header p {
+      margin: 0.25rem 0 0;
+      color: #9ca3af;
+      font-size: 0.9rem;
+    }
+    main {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+      padding: 1.5rem 2rem 2rem;
+    }
+    .card {
+      background: #020817;
+      padding: 1rem;
+      border-radius: 0.9rem;
+      border: 1px solid #111827;
+      box-shadow: 0 10px 40px rgba(15,23,42,0.65);
+    }
+    .card h2 {
+      margin-top: 0;
+      margin-bottom: 0.75rem;
+      font-size: 1.1rem;
+    }
+    .card.wide {
+      grid-column: 1 / -1;
+    }
+    form input,
+    form button {
+      width: 100%;
+      padding: 0.55rem 0.75rem;
+      margin-bottom: 0.55rem;
+      border-radius: 0.6rem;
+      border: 1px solid #111827;
+      background: #020817;
+      color: #e5e7eb;
+      font-size: 0.9rem;
+    }
+    form input:focus {
+      outline: 1px solid #22c55e;
+      border-color: #22c55e;
+    }
+    button {
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.15s ease;
+    }
+    button:hover {
+      background: #22c55e;
+      border-color: #22c55e;
+      color: #020817;
+    }
+    button.danger {
+      border-color: #7f1d1d;
+      color: #fca5a5;
+    }
+    button.danger:hover {
+      background: #b91c1c;
+      color: #fee2e2;
+    }
+    .list-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .list-header button {
+      width: auto;
+      padding-inline: 0.9rem;
+      font-size: 0.8rem;
+    }
+    #status {
+      margin-top: 0.35rem;
+      font-size: 0.78rem;
+    }
+    #status.info { color: #9ca3af; }
+    #status.success { color: #22c55e; }
+    #status.error { color: #f97316; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.5rem;
+      font-size: 0.78rem;
+    }
+    th, td {
+      padding: 0.35rem 0.4rem;
+      border-bottom: 1px solid #111827;
+      text-align: left;
+      white-space: nowrap;
+    }
+    th {
+      font-weight: 500;
+      color: #9ca3af;
+    }
+    .ok {
+      color: #22c55e;
+      font-weight: 500;
+    }
+    .inactive {
+      color: #f97316;
+      font-weight: 500;
+    }
+
+  script.js: |
+    const API_BASE = "/api";
+
+    async function apiRequest(path, options = {}) {
+      const res = await fetch(`${API_BASE}${path}`, {
+        headers: { "Content-Type": "application/json" },
+        ...options,
+      });
+
+      const text = await res.text();
+      let data = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch (e) {
+        console.error("Response is not valid JSON:", text);
+        throw new Error("Request failed (invalid JSON from API)");
+      }
+
+      if (!res.ok) {
+        throw new Error(
+          data.detail ||
+          data.message ||
+          data.error ||
+          data.status ||
+          `Request failed with ${res.status}`
+        );
+      }
+
+      return data;
+    }
+
+    function setStatus(message, type = "info") {
+      const el = document.getElementById("status");
+      el.textContent = message;
+      el.className = type;
+    }
+
+    async function loadEmployees() {
+      try {
+        setStatus("Loading employees...", "info");
+        const data = await apiRequest("/employees", { method: "GET" });
+
+        const employees = data.employees || [];
+        const tbody = document.querySelector("#employees-table tbody");
+        tbody.innerHTML = "";
+
+        employees.forEach((emp) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${emp.id}</td>
+            <td>${emp.name}</td>
+            <td>${emp.email}</td>
+            <td>${emp.department || ""}</td>
+            <td>${emp.role || ""}</td>
+            <td class="${emp.status === "active" ? "ok" : "inactive"}">
+              ${emp.status}
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        setStatus(`Loaded ${employees.length} employees.`, "success");
+      } catch (err) {
+        console.error(err);
+        setStatus(`Error loading employees: ${err.message}`, "error");
+      }
+    }
+
+    document.getElementById("onboard-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const name = document.getElementById("onboard-name").value.trim();
+      const email = document.getElementById("onboard-email").value.trim();
+      const department = document.getElementById("onboard-dept").value.trim();
+      const role = document.getElementById("onboard-role").value.trim();
+
+      if (!name || !email) {
+        setStatus("Name and email are required for onboarding.", "error");
+        return;
+      }
+
+      try {
+        setStatus("Onboarding employee...", "info");
+        const body = { name, email };
+        if (department) body.department = department;
+        if (role) body.role = role;
+
+        const res = await apiRequest("/onboard", {
+          method: "POST",
+          body: JSON.stringify(body),
+        });
+
+        setStatus(`Onboarded: ${res.employee.email}`, "success");
+        e.target.reset();
+        await loadEmployees();
+      } catch (err) {
+        console.error(err);
+        setStatus(`Onboard failed: ${err.message}`, "error");
+      }
+    });
+
+    document.getElementById("offboard-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = document.getElementById("offboard-email").value.trim();
+
+      if (!email) {
+        setStatus("Email is required for offboarding.", "error");
+        return;
+      }
+
+      try {
+        setStatus("Offboarding employee...", "info");
+        const res = await apiRequest("/offboard", {
+          method: "POST",
+          body: JSON.stringify({ email }),
+        });
+
+        if (res.status === "not_found") {
+          setStatus(`No employee found with email ${email}`, "error");
+        } else {
+          setStatus(`Offboarded: ${res.employee.email}`, "success");
+        }
+
+        e.target.reset();
+        await loadEmployees();
+      } catch (err) {
+        console.error(err);
+        setStatus(`Offboard failed: ${err.message}`, "error");
+      }
+    });
+
+    document.getElementById("refresh-btn").addEventListener("click", loadEmployees);
+
+    loadEmployees();
+
+  nginx.conf: |
+    user  nginx;
+    worker_processes  auto;
+
+    error_log  /var/log/nginx/error.log warn;
+    pid        /var/run/nginx.pid;
+
+    events {
+      worker_connections  1024;
+    }
+
+    http {
+      include       /etc/nginx/mime.types;
+      default_type  application/octet-stream;
+
+      access_log  /var/log/nginx/access.log;
+
+      sendfile        on;
+      keepalive_timeout  65;
+
+      server {
+        listen 80;
+        server_name _;
+
+        root /usr/share/nginx/html;
+        index index.html;
+
+        location / {
+          try_files $uri /index.html;
+        }
+
+        location /api/ {
+          proxy_pass         http://portal-hr-api-svc:3000/;
+          proxy_http_version 1.1;
+          proxy_set_header   Upgrade $http_upgrade;
+          proxy_set_header   Connection keep-alive;
+          proxy_set_header   Host $host;
+          proxy_cache_bypass $http_upgrade;
+        }
+      }
+    }

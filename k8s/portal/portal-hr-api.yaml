@@ -3,6 +3,8 @@ kind: Deployment
 metadata:
   name: portal-hr-api
   namespace: portal
+  labels:
+    app: portal-hr-api
 spec:
   replicas: 1
   selector:
@@ -15,23 +17,41 @@ spec:
     spec:
       containers:
         - name: hr-api
-          image: omarwadeh/innovatech-hr-api:dev
+          image: omarwadeh/portal-hr-api:latest   # <- JOUW IMAGE, 1 versie
+          imagePullPolicy: Always
           ports:
             - containerPort: 3000
           envFrom:
             - secretRef:
-                name: portal-db
-
+                name: portal-db-secret
+          env:
+            - name: NODE_ENV
+              value: "production"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 20
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: portal-hr-api-svc
   namespace: portal
+  labels:
+    app: portal-hr-api
 spec:
-  type: ClusterIP
   selector:
     app: portal-hr-api
   ports:
-    - port: 80
+    - name: http
+      port: 3000
       targetPort: 3000
+  type: ClusterIP

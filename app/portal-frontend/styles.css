@@ -1,0 +1,71 @@
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #0f172a;
+  color: #e5e7eb;
+}
+
+header {
+  padding: 1.5rem 2rem;
+  background: #111827;
+  border-bottom: 1px solid #1f2937;
+}
+
+main {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+  padding: 1.5rem 2rem;
+}
+
+.card {
+  background: #111827;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid #1f2937;
+}
+
+input,
+button {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid #374151;
+  background: #020817;
+  color: #e5e7eb;
+  box-sizing: border-box;
+}
+
+button {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+button:hover {
+  background: #1d4ed8;
+}
+
+button.danger:hover {
+  background: #b91c1c;
+}
+
+#status.info { color: #9ca3af; }
+#status.success { color: #22c55e; }
+#status.error { color: #f97316; }
+
+#employees-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+}
+
+#employees-table th,
+#employees-table td {
+  padding: 0.35rem;
+  border-bottom: 1px solid #1f2937;
+}
+
+.ok { color: #22c55e; }
+.inactive { color: #f97316; }

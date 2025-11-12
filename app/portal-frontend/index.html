@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Innovatech Self-Service Portal</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <h1>Innovatech Self-Service Portal</h1>
+    <p>Automated onboarding & offboarding demo</p>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Onboard Employee</h2>
+      <form id="onboard-form">
+        <input type="text" id="onboard-name" placeholder="Full name" required />
+        <input type="email" id="onboard-email" placeholder="Email" required />
+        <input type="text" id="onboard-dept" placeholder="Department (optional)" />
+        <input type="text" id="onboard-role" placeholder="Role (optional)" />
+        <button type="submit">Onboard</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Offboard Employee</h2>
+      <form id="offboard-form">
+        <input type="email" id="offboard-email" placeholder="Email" required />
+        <button type="submit" class="danger">Offboard</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Employees</h2>
+      <button id="refresh-btn">Refresh list</button>
+      <div id="status"></div>
+      <table id="employees-table">
+        <thead>
+          <tr>
+            <th>ID</th><th>Name</th><th>Email</th><th>Dept</th><th>Role</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>

@@ -1,71 +1,62 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: portal-nginx-conf
-  namespace: portal
-data:
-  nginx.conf: |
-    events {}
-    http {
-      upstream hr_api {
-        server portal-hr-api-svc.portal.svc.cluster.local:80;
-      }
-      server {
-        listen 80;
-        location / {
-          root /usr/share/nginx/html;
-          index index.html;
-        }
-        location /api/ {
-          proxy_pass http://hr_api/;
-        }
-      }
-    }
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: portal-nginx
+  name: portal-frontend
   namespace: portal
+  labels:
+    app: portal-frontend
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: portal-nginx
+      app: portal-frontend
   template:
     metadata:
       labels:
-        app: portal-nginx
+        app: portal-frontend
     spec:
       containers:
         - name: nginx
-          image: nginx:stable-alpine
+          image: nginx:1.27-alpine
           ports:
             - containerPort: 80
           volumeMounts:
-            - name: nginx-conf
+            - name: portal-frontend-files
+              mountPath: /usr/share/nginx/html
+            - name: portal-nginx-conf
               mountPath: /etc/nginx/nginx.conf
               subPath: nginx.conf
-            - name: portal-frontend
-              mountPath: /usr/share/nginx/html/index.html
-              subPath: index.html
       volumes:
-        - name: nginx-conf
+        - name: portal-frontend-files
           configMap:
-            name: portal-nginx-conf
-        - name: portal-frontend
+            name: portal-frontend-config
+            items:
+              - key: index.html
+                path: index.html
+              - key: styles.css
+                path: styles.css
+              - key: script.js
+                path: script.js
+        - name: portal-nginx-conf
           configMap:
-            name: portal-frontend
+            name: portal-frontend-config
+            items:
+              - key: nginx.conf
+                path: nginx.conf
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: portal-nginx-svc
+  name: portal-frontend-svc
   namespace: portal
+  labels:
+    app: portal-frontend
 spec:
   type: LoadBalancer
   selector:
-    app: portal-nginx
+    app: portal-frontend
   ports:
     - port: 80
       targetPort: 80
+      protocol: TCP
+      name: http
