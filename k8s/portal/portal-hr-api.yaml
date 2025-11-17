@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: hr-api
-          image: omarwadeh/portal-hr-api:latest   # <- JOUW IMAGE, 1 versie
+          image: omarwadeh/portal-hr-api:v2        # <- zorg dat je deze tag hebt gepusht
           imagePullPolicy: Always
           ports:
             - containerPort: 3000
@@ -27,6 +27,10 @@ spec:
           env:
             - name: NODE_ENV
               value: "production"
+            - name: AWS_REGION
+              value: "eu-west-1"                  # jouw regio
+            - name: LAMBDA_ONBOARD_URL
+              value: "https://2xodlglkez4w3p6fwlj7idhc7q0wkjoc.lambda-url.eu-west-1.on.aws/"                 # naam van je Lambda
           readinessProbe:
             httpGet:
               path: /health

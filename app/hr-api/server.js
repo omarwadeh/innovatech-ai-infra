@@ -1,144 +1,154 @@
+// app/hr-api/server.js
 const express = require("express");
+const bodyParser = require("body-parser");
 const cors = require("cors");
 const { Pool } = require("pg");
+const { invokeOnboardLambda } = require("./lambdaClient");
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-const dbConfig = {
+// Middleware
+app.use(cors());
+app.use(bodyParser.json());
+
+// DB-config uit env
+const pool = new Pool({
   host: process.env.DB_HOST,
   port: process.env.DB_PORT || 5432,
-  database: process.env.DB_NAME || "hrdb",
+  database: process.env.DB_NAME,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
-  ssl: false, // zet true + opties als je RDS dat vereist
-};
-
-console.log("Starting HR API with DB config:", {
-  host: dbConfig.host,
-  port: dbConfig.port,
-  database: dbConfig.database,
-  user: dbConfig.user,
-  ssl: dbConfig.ssl,
 });
 
-const pool = new Pool(dbConfig);
-
-app.use(cors());
-app.use(express.json());
-
-let dbStatus = "unknown";
-
-// Zorg dat DB schema bestaat, maar KILL de app niet bij fouten
+// DB init – employees tabel aanmaken als die nog niet bestaat
 async function initDb() {
+  const client = await pool.connect();
   try {
-    const client = await pool.connect();
-    try {
-      await client.query(`
-        CREATE TABLE IF NOT EXISTS employees (
-          id SERIAL PRIMARY KEY,
-          name VARCHAR(255) NOT NULL,
-          email VARCHAR(255) UNIQUE NOT NULL,
-          department VARCHAR(255),
-          role VARCHAR(255),
-          status VARCHAR(32) NOT NULL DEFAULT 'active',
-          created_at TIMESTAMP DEFAULT NOW()
-        );
-      `);
-      console.log("DB schema ready");
-      dbStatus = "up";
-    } finally {
-      client.release();
-    }
-  } catch (err) {
-    dbStatus = "down";
-    console.error("initDb error:", err.message);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS employees (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        department TEXT,
+        role TEXT,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    console.log("DB: employees table ready");
+  } finally {
+    client.release();
   }
 }
 
-// HEALTHCHECK – altijd 200, zodat liveness/readiness niet je pod slopen
+// Health endpoint
 app.get("/health", async (req, res) => {
   try {
-    const result = await pool.query("SELECT 1").catch((err) => {
-      console.error("Healthcheck DB error:", err.message);
-      return null;
-    });
-
-    if (result) {
-      dbStatus = "up";
-    } else if (dbStatus !== "up") {
-      dbStatus = "down";
+    const result = await pool.query("SELECT 1 AS ok");
+    if (result.rows[0].ok === 1) {
+      return res.json({ status: "ok", db: "up" });
     }
-
-    res.json({ status: "ok", db: dbStatus });
+    return res.status(500).json({ status: "error", db: "weird" });
   } catch (err) {
-    console.error("Unexpected /health error:", err.message);
-    // nog steeds 200 teruggeven, anders CrashLoop
-    res.json({ status: "ok", db: "down", detail: err.message });
+    console.error("Healthcheck DB error:", err);
+    return res.status(500).json({ status: "error", db: "down" });
   }
 });
 
-// LIST EMPLOYEES
+// Alle employees
 app.get("/employees", async (req, res) => {
   try {
     const result = await pool.query(
       "SELECT id, name, email, department, role, status FROM employees ORDER BY id ASC"
     );
-    res.json({ employees: result.rows });
+    res.json({ status: "ok", employees: result.rows });
   } catch (err) {
-    console.error("Error fetching employees:", err.message);
-    res.status(500).json({
-      error: "internal_error",
-      detail: err.message,
-    });
+    console.error("Error fetching employees:", err);
+    res
+      .status(500)
+      .json({ status: "error", message: "Failed to fetch employees" });
   }
 });
 
-// ONBOARD
+// Onboard employee
 app.post("/onboard", async (req, res) => {
   const { name, email, department, role } = req.body || {};
 
   if (!name || !email) {
     return res.status(400).json({
-      error: "invalid_input",
-      detail: "name and email are required",
+      status: "error",
+      message: "Name and email are required",
     });
   }
 
+  const client = await pool.connect();
   try {
-    const result = await pool.query(
+    await client.query("BEGIN");
+
+    // UPSERT: bestaand email → update, anders insert
+    const result = await client.query(
       `
       INSERT INTO employees (name, email, department, role, status)
       VALUES ($1, $2, $3, $4, 'active')
-      ON CONFLICT (email)
-      DO UPDATE SET
-        name = EXCLUDED.name,
-        department = EXCLUDED.department,
-        role = EXCLUDED.role,
-        status = 'active'
-      RETURNING id, name, email, department, role, status
+      ON CONFLICT (email) DO UPDATE
+      SET name = EXCLUDED.name,
+          department = EXCLUDED.department,
+          role = EXCLUDED.role,
+          status = 'active'
+      RETURNING id, name, email, department, role, status;
       `,
       [name, email, department || null, role || null]
     );
 
-    res.json({ status: "ok", employee: result.rows[0] });
-  } catch (err) {
-    console.error("Error onboarding employee:", err.message);
-    res.status(500).json({
-      error: "internal_error",
-      detail: err.message,
+    const employee = result.rows[0];
+
+    await client.query("COMMIT");
+
+    // ===== Lambda aanroep met rijke payload =====
+    const lambdaPayload = {
+      id: employee.id,
+      name: employee.name,
+      email: employee.email,
+      department: employee.department,
+      role: employee.role,
+      status: employee.status,
+      action: "onboard",
+    };
+
+    let lambdaResult;
+    try {
+      lambdaResult = await invokeOnboardLambda(lambdaPayload);
+      console.log("[Onboard] Lambda response:", lambdaResult);
+    } catch (lambdaErr) {
+      console.error("[Onboard] Lambda call failed:", lambdaErr);
+      lambdaResult = { status: "lambda-error" };
+    }
+
+    return res.json({
+      status: "ok",
+      employee,
+      automation: lambdaResult.status || "queued",
     });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Error onboarding employee:", err);
+    return res.status(500).json({
+      status: "error",
+      message: "Failed to onboard employee",
+    });
+  } finally {
+    client.release();
   }
 });
 
-// OFFBOARD
+// Offboard employee
 app.post("/offboard", async (req, res) => {
   const { email } = req.body || {};
-
   if (!email) {
     return res.status(400).json({
-      error: "invalid_input",
-      detail: "email is required",
+      status: "error",
+      message: "Email is required",
     });
   }
 
@@ -148,36 +158,60 @@ app.post("/offboard", async (req, res) => {
       UPDATE employees
       SET status = 'inactive'
       WHERE email = $1
-      RETURNING id, name, email, department, role, status
+      RETURNING id, name, email, department, role, status;
       `,
       [email]
     );
 
-    if (result.rows.length === 0) {
-      return res.json({ status: "not_found" });
+    if (result.rowCount === 0) {
+      return res.status(404).json({
+        status: "error",
+        message: "Employee not found",
+      });
     }
 
-    res.json({ status: "ok", employee: result.rows[0] });
+    const employee = result.rows[0];
+
+    // ===== Lambda offboard aanroep =====
+    const lambdaPayload = {
+      id: employee.id,
+      name: employee.name,
+      email: employee.email,
+      department: employee.department,
+      role: employee.role,
+      status: employee.status,
+      action: "offboard",
+    };
+
+    let lambdaResult;
+    try {
+      lambdaResult = await invokeOnboardLambda(lambdaPayload);
+      console.log("[Offboard] Lambda response:", lambdaResult);
+    } catch (lambdaErr) {
+      console.error("[Offboard] Lambda call failed:", lambdaErr);
+      lambdaResult = { status: "lambda-error" };
+    }
+
+    return res.json({
+      status: "ok",
+      employee,
+      automation: lambdaResult.status || "queued",
+    });
   } catch (err) {
-    console.error("Error offboarding employee:", err.message);
-    res.status(500).json({
-      error: "internal_error",
-      detail: err.message,
+    console.error("Error offboarding employee:", err);
+    return res.status(500).json({
+      status: "error",
+      message: "Failed to offboard employee",
     });
   }
 });
 
-// Fallback error handler
-app.use((err, req, res, next) => {
-  console.error("Unhandled error:", err);
-  res.status(500).json({
-    error: "internal_error",
-    detail: err.message || "unknown",
-  });
-});
-
-initDb().then(() => {
-  app.listen(port, () => {
-    console.log(`HR API listening on port ${port}`);
-  });
+// Server starten
+app.listen(port, async () => {
+  console.log(`HR API listening on port ${port}`);
+  try {
+    await initDb();
+  } catch (err) {
+    console.error("Failed to init DB:", err);
+  }
 });

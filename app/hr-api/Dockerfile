@@ -3,9 +3,10 @@ FROM node:20-alpine
 WORKDIR /usr/src/app
 
 COPY package.json package-lock.json* ./
-RUN npm install --only=production || npm install
+RUN npm install --only-production || npm install
 
-COPY server.js ./server.js
+# ⬇️ HIER DE FIX: kopieer ALLE bestanden van hr-api
+COPY . .
 
 ENV PORT=3000
 EXPOSE 3000
